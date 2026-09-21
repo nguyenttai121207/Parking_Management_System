@@ -1,0 +1,26 @@
+# Build directories
+build/
+bin/
+lib/
+dist/
+
+# CMake artifacts
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+!.vscode/
+!resources/
+!CMakeLists.txt
+
+# Qt & Qt Creator artifacts
+.qt/
+.cmake/
+.qtcreator/
+*.user
+*.user.*
+*.autosave
+
+# Runtime database
+*.db
