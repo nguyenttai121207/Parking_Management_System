@@ -4,6 +4,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QFrame>
+#include <QIcon>
 
 LoginDialog::LoginDialog(QWidget* parent)
     : QDialog(parent) {
@@ -12,7 +13,8 @@ LoginDialog::LoginDialog(QWidget* parent)
 
 void LoginDialog::setupUi() {
     setWindowTitle(QStringLiteral("Đăng Nhập Hệ Thống Quản Lý Bãi Xe"));
-    setFixedSize(420, 360);
+    setMinimumSize(420, 380);
+    resize(420, 400);
     setAttribute(Qt::WA_DeleteOnClose, false);
 
     auto mainLayout = new QVBoxLayout(this);
@@ -30,22 +32,34 @@ void LoginDialog::setupUi() {
     mainLayout->addWidget(subtitle);
 
     auto card = new QFrame(this);
-    card->setStyleSheet("background-color: #252538; border: 1px solid #313244; border-radius: 8px; padding: 14px;");
+    // ponytail: padding trên QFrame inline style không tạo content inset cho children trong Qt
+    card->setStyleSheet("background-color: #252538; border: 1px solid #313244; border-radius: 8px;");
     auto formLayout = new QVBoxLayout(card);
-    formLayout->setSpacing(10);
+    formLayout->setContentsMargins(14, 14, 14, 14);
+    formLayout->setSpacing(8);
 
     auto userLabel = new QLabel(QStringLiteral("Tên Đăng Nhập:"), card);
     userLabel->setStyleSheet("color: #bac2de; font-weight: 600; font-size: 12px;");
     m_usernameEdit = new QLineEdit(card);
+    m_usernameEdit->setMinimumHeight(38);
     m_usernameEdit->setPlaceholderText(QStringLiteral("Nhập username (ví dụ: admin hoặc tech)"));
     m_usernameEdit->setText("admin");
 
     auto passLabel = new QLabel(QStringLiteral("Mật Khẩu:"), card);
     passLabel->setStyleSheet("color: #bac2de; font-weight: 600; font-size: 12px;");
     m_passwordEdit = new QLineEdit(card);
+    m_passwordEdit->setMinimumHeight(38);
     m_passwordEdit->setEchoMode(QLineEdit::Password);
     m_passwordEdit->setPlaceholderText(QStringLiteral("Nhập mật khẩu"));
     m_passwordEdit->setText("admin123");
+
+    // Nút con mắt hiện/ẩn mật khẩu nằm trong ô QLineEdit (trailing)
+    m_togglePassAction = new QAction(QIcon(QStringLiteral(":/icons/eye_off.svg")), QString(), m_passwordEdit);
+    m_togglePassAction->setCheckable(true);
+    m_togglePassAction->setChecked(false);
+    m_togglePassAction->setToolTip(tr("Hiện mật khẩu"));
+    m_passwordEdit->addAction(m_togglePassAction, QLineEdit::TrailingPosition);
+    connect(m_togglePassAction, &QAction::toggled, this, &LoginDialog::onTogglePassword);
 
     formLayout->addWidget(userLabel);
     formLayout->addWidget(m_usernameEdit);
@@ -95,4 +109,21 @@ void LoginDialog::onLoginClicked() {
         m_errorLabel->setText(QStringLiteral("Sai tên đăng nhập hoặc mật khẩu!"));
         m_errorLabel->show();
     }
+}
+
+void LoginDialog::onTogglePassword(bool checked) {
+    // Giữ nguyên vị trí con trỏ khi đổi chế độ
+    int cursorPos = m_passwordEdit->cursorPosition();
+
+    if (checked) {
+        m_passwordEdit->setEchoMode(QLineEdit::Normal);
+        m_togglePassAction->setIcon(QIcon(QStringLiteral(":/icons/eye_open.svg")));
+        m_togglePassAction->setToolTip(tr("Ẩn mật khẩu"));
+    } else {
+        m_passwordEdit->setEchoMode(QLineEdit::Password);
+        m_togglePassAction->setIcon(QIcon(QStringLiteral(":/icons/eye_off.svg")));
+        m_togglePassAction->setToolTip(tr("Hiện mật khẩu"));
+    }
+
+    m_passwordEdit->setCursorPosition(cursorPos);
 }

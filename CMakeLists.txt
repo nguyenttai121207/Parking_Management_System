@@ -116,7 +116,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt6::Sql
 )
 
-if(WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Release")
+if(WIN32)
     set_property(TARGET ${PROJECT_NAME} PROPERTY WIN32_EXECUTABLE ON)
 endif()
 

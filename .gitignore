@@ -1,26 +1,37 @@
-# Build directories
+# ── Build output ──────────────────────────────────────────────
 build/
-bin/
-lib/
-dist/
+build-*/
+out/
+App/
 
-# CMake artifacts
+# ── CMake artifacts ────────────────────────────────────────────
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
 *.cmake
-!.vscode/
-!resources/
 !CMakeLists.txt
 
-# Qt & Qt Creator artifacts
+# ── Compiled binaries & objects ────────────────────────────────
+*.exe
+*.o
+*.obj
+
+# ── Qt / Qt Creator artifacts ──────────────────────────────────
 .qt/
 .cmake/
 .qtcreator/
 *.user
 *.user.*
 *.autosave
+CMakeLists.txt.user
 
-# Runtime database
+# ── IDE folders ────────────────────────────────────────────────
+.vs/
+.idea/
+.vscode/
+
+# ── Runtime data (local only) ──────────────────────────────────
 *.db
+*.db-shm
+*.db-wal

@@ -16,7 +16,8 @@ PricingAdminDialog::PricingAdminDialog(QWidget* parent)
 
 void PricingAdminDialog::setupUi() {
     setWindowTitle(QStringLiteral("Cấu Hình Biểu Phí Bãi Giữ Xe"));
-    setFixedSize(620, 400);
+    setMinimumSize(680, 460);
+    resize(680, 460);
     setAttribute(Qt::WA_DeleteOnClose, false);
 
     auto mainLayout = new QVBoxLayout(this);
@@ -35,18 +36,27 @@ void PricingAdminDialog::setupUi() {
     auto formFrame = new QFrame(this);
     formFrame->setStyleSheet("background-color: #252538; border: 1px solid #313244; border-radius: 8px; padding: 12px;");
     auto grid = new QGridLayout(formFrame);
-    grid->setSpacing(14);
-    grid->setContentsMargins(14, 14, 14, 14);
+    grid->setVerticalSpacing(12);
+    grid->setHorizontalSpacing(12);
+    grid->setContentsMargins(16, 16, 16, 16);
+    grid->setColumnStretch(0, 2);
+    grid->setColumnStretch(1, 3);
+    grid->setColumnStretch(2, 3);
+    grid->setColumnMinimumWidth(0, 120);
+    grid->setRowMinimumHeight(0, 40); // header row
 
-    // Tiêu đề cột (Header) theo yêu cầu Prompt 5
+    // Tiêu đề cột
     auto headerType = new QLabel(QStringLiteral("Loại xe"), formFrame);
-    headerType->setStyleSheet("font-weight: bold; color: #89b4fa; font-size: 13px;");
+    headerType->setMinimumHeight(40);
+    headerType->setStyleSheet("font-weight: bold; color: #89b4fa; font-size: 13px; padding: 6px 0;");
 
     auto headerFirst = new QLabel(QStringLiteral("Phí block đầu (VNĐ)"), formFrame);
-    headerFirst->setStyleSheet("font-weight: bold; color: #89b4fa; font-size: 13px;");
+    headerFirst->setMinimumHeight(40);
+    headerFirst->setStyleSheet("font-weight: bold; color: #89b4fa; font-size: 13px; padding: 6px 4px;");
 
     auto headerNext = new QLabel(QStringLiteral("Phí block tiếp theo (VNĐ)"), formFrame);
-    headerNext->setStyleSheet("font-weight: bold; color: #89b4fa; font-size: 13px;");
+    headerNext->setMinimumHeight(40);
+    headerNext->setStyleSheet("font-weight: bold; color: #89b4fa; font-size: 13px; padding: 6px 4px;");
 
     grid->addWidget(headerType, 0, 0);
     grid->addWidget(headerFirst, 0, 1);
@@ -69,25 +79,48 @@ void PricingAdminDialog::setupUi() {
     m_rows.clear();
 
     for (const auto& item : fixedTypes) {
-        // Cột 1: Tên hiển thị cố định rõ ràng, không bị render rỗng
         auto lbl = new QLabel(QString::fromUtf8(item.name), formFrame);
-        lbl->setStyleSheet("color: #cdd6f4; font-weight: 600; font-size: 13px;");
+        lbl->setStyleSheet(
+            "color: #cdd6f4;"
+            "font-weight: 600;"
+            "font-size: 13px;"
+            "padding: 2px 6px;"
+            "background: transparent;"
+        );
+        lbl->setMinimumHeight(40);
+        lbl->setMinimumWidth(120);
+        lbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
         grid->addWidget(lbl, row, 0);
 
-        // Cột 2: Phí block đầu
+        // ponytail: ::up-button/::down-button phải được style tường minh,
+        // nếu không Qt dùng native size (~20px mỗi nút) vượt min-height:28px
+        const QString spinStyle = QStringLiteral(
+            "QDoubleSpinBox {"
+            "  min-height: 36px;"
+            "  padding: 2px 4px;"
+            "}"
+            "QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {"
+            "  width: 18px;"
+            "  border: none;"
+            "}"
+        );
+
         auto firstSpin = new QDoubleSpinBox(formFrame);
         firstSpin->setRange(0.0, 5000000.0);
         firstSpin->setSingleStep(1000.0);
         firstSpin->setDecimals(0);
         firstSpin->setSuffix(QStringLiteral(" đ"));
+        firstSpin->setMinimumWidth(150);
+        firstSpin->setStyleSheet(spinStyle);
         grid->addWidget(firstSpin, row, 1);
 
-        // Cột 3: Phí block tiếp theo
         auto nextSpin = new QDoubleSpinBox(formFrame);
         nextSpin->setRange(0.0, 5000000.0);
         nextSpin->setSingleStep(1000.0);
         nextSpin->setDecimals(0);
         nextSpin->setSuffix(QStringLiteral(" đ"));
+        nextSpin->setMinimumWidth(150);
+        nextSpin->setStyleSheet(spinStyle);
         grid->addWidget(nextSpin, row, 2);
 
         m_rows.push_back({item.type, QString::fromUtf8(item.name), firstSpin, nextSpin});

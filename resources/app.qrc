@@ -1,5 +1,7 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource prefix="/">
     <file>styles/dark_theme.qss</file>
+    <file>icons/eye_open.svg</file>
+    <file>icons/eye_off.svg</file>
 </qresource>
 </RCC>

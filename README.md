@@ -1,141 +1,237 @@
-# 🅿️ ỨNG DỤNG QUẢN LÝ BÃI GIỮ XE THÔNG MINH (PARKING MANAGEMENT SYSTEM)
+# 🅿️ Hệ Thống Quản Lý Bãi Giữ Xe Thông Minh
 
-Dự án phần mềm máy tính (Desktop GUI) được phát triển bằng **C++17**, **Qt6 Widgets**, **SQLite3** và **CMake**, được thiết kế theo đúng chuẩn kiến trúc Hướng Đối Tượng (OOP) và các Mẫu Thiết Kế (Design Patterns).
+> Phần mềm desktop quản lý bãi giữ xe tự động, xây dựng bằng **C++17**, **Qt 6.11**, **SQLite** và **CMake**.  
+> Kiến trúc MVC, áp dụng các Design Pattern: Strategy, Repository, Singleton, Factory.
 
----
-
-## 1. Tính Năng & Nghiệp Vụ Cốt Lõi
-
-1. **Phân loại 4 dòng phương tiện**:
-   - Xe máy xăng
-   - Xe máy điện
-   - Ô tô xăng
-   - Ô tô điện
-2. **Quản lý vị trí đỗ (Slot Allocation)**:
-   - Bãi đỗ chia 2 phân khu: Khu vực đỗ xe máy (M-01 đến M-20) và Khu vực đỗ ô tô (C-01 đến C-10).
-   - Tự động tìm kiếm ô đỗ trống đầu tiên khi check-in, tự động từ chối và cảnh báo lỗi nếu hết chỗ.
-3. **Cơ chế tính tiền linh hoạt (Strategy Pattern)**:
-   - **Vé theo giờ**: Tính theo thời gian thực từ lúc vào đến lúc ra.
-     - *Quy tắc làm tròn*: Phần lẻ $\ge 15$ phút tính thêm 1 giờ trọn vẹn. Tối thiểu 1 giờ.
-   - **Vé tháng**: Cho phép đăng ký theo gói 1, 3, 6, 12 tháng. Trong thời hạn hiệu lực, xe vào/ra hoàn toàn miễn phí (0 VNĐ). Tự động fallback sang tính theo giờ nếu vé tháng hết hạn.
-4. **Quản lý & Cấu hình bảng giá động (Admin Screen)**:
-   - Toàn bộ giá giờ và giá tháng được lưu trữ trong bảng SQLite `pricing_config`, có thể điều chỉnh qua giao diện Admin mà không cần sửa code.
-5. **Dashboard thời gian thực & Tra cứu lịch sử**:
-   - Thống kê tỷ lệ lấp đầy xe máy, ô tô, tổng số xe đang đậu, doanh thu trong ngày.
-   - Bảng theo dõi trực quan các xe đang trong bãi (nhấp đúp chuột để thanh toán check-out nhanh).
-   - Tra cứu lịch sử xe ra vào theo biển số.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![C++17](https://img.shields.io/badge/C%2B%2B-17-orange.svg)](https://isocpp.org/)
+[![Qt6](https://img.shields.io/badge/Qt-6.11-green.svg)](https://www.qt.io/)
 
 ---
 
-## 2. Thể Hiện Các Nguyên Lý OOP & Design Patterns
+## 📸 Ảnh Màn Hình
 
-| Nguyên Lý / Pattern | File mã nguồn | Giải thích & Minh họa trong code |
-| :--- | :--- | :--- |
-| **Abstraction (Tính trừu tượng)** | `src/models/Vehicle.h` | Lớp `Vehicle` khai báo các phương thức thuần ảo (`pure virtual`): `getType()`, `getDisplayName()`, `getRequiredSlotType()`. Lớp cha không thể khởi tạo trực tiếp mà đóng vai trò là bản thiết kế giao diện chung. |
-| **Inheritance (Tính kế thừa)** | `src/models/Vehicle.h`, `Vehicle.cpp` | `MotorbikeGas`, `MotorbikeElectric`, `CarGas`, `CarElectric` kế thừa từ `Vehicle`, tái sử dụng thuộc tính biển số và định nghĩa chi tiết hành vi của riêng mình. |
-| **Polymorphism (Tính đa hình)** | `src/services/ParkingManager.cpp` | Gọi hàm ảo `vehicle->validateLicensePlate()` và `vehicle->getRequiredSlotType()` thông qua con trỏ lớp cơ sở `std::unique_ptr<Vehicle>`. Không cần viết `if (type == ...)` rải rác. |
-| **Encapsulation (Tính đóng gói)** | Tất cả các Model trong `src/models/` | Tất cả thuộc tính (như `m_licensePlate`, `m_slotId`, `m_totalFee`) đều là `private` hoặc `protected`, chỉ được truy xuất qua getter/setter và các hàm nghiệp vụ có validation. |
-| **Virtual Destructor** | `src/models/Vehicle.h`, `IPricingStrategy.h` | Khai báo `virtual ~Vehicle() = default;` bắt buộc trong C++ để khi hủy đối tượng đa hình qua con trỏ lớp cha, destructor của lớp con tương ứng sẽ được gọi sạch sẽ, tránh memory leak. |
-| **Strategy Pattern** | `src/strategies/` | Tách rời thuật toán tính tiền ra khỏi đối tượng: `IPricingStrategy` làm interface, `HourlyPricingStrategy` (tính giờ) và `MonthlyPassStrategy` (vé tháng) là các concrete strategy có thể hoán đổi linh hoạt lúc runtime. |
-| **Repository Pattern** | `src/db/ParkingRepository.h/.cpp` | Tách biệt toàn bộ truy vấn SQL ra khỏi code nghiệp vụ. Service và UI chỉ làm việc với Model C++, không dính dáng đến câu lệnh SQL. |
-| **Singleton Pattern** | `src/db/DatabaseManager.h/.cpp` | Đảm bảo chỉ có duy nhất 1 kết nối SQLite mở trong toàn bộ vòng đời của ứng dụng thông qua `DatabaseManager::instance()`. |
-| **Factory Pattern** | `VehicleFactory::createVehicle(...)` | Đóng gói logic tạo đối tượng phương tiện con phù hợp dựa trên `VehicleType`. |
+<!-- Thêm ảnh vào thư mục docs/screenshots/ rồi uncomment các dòng dưới -->
+
+| Màn hình Đăng nhập | Dashboard chính | Cổng tự động (Kiosk) |
+|---|---|---|
+| ![Login](docs/screenshots/login.png) | ![Dashboard](docs/screenshots/dashboard.png) | ![Kiosk](docs/screenshots/kiosk.png) |
+
+| Tự thanh toán | Cấu hình biểu phí | Lịch sử xe ra vào |
+|---|---|---|
+| ![SelfCheckout](docs/screenshots/self_checkout.png) | ![Pricing](docs/screenshots/pricing_config.png) | ![History](docs/screenshots/history.png) |
 
 ---
 
-## 3. Cấu Trúc Thư Mục Dự Án
+## ✨ Tính Năng Chính
+
+### 🔐 Đăng nhập & Phân quyền
+- Màn hình đăng nhập có hiện/ẩn mật khẩu (nút con mắt trong ô nhập)
+- Hai vai trò: **Admin** (toàn quyền) và **Maintenance** (chỉ xem nhật ký bảo trì)
+- Mật khẩu được hash SHA-256 trước khi lưu vào SQLite
+
+### 🚗 Quản lý 4 Loại Xe
+| Loại xe | Enum | Phí block đầu | Phí block tiếp theo |
+|---|---|---|---|
+| Xe đạp | `Bicycle (0)` | 2.000 đ | 1.000 đ |
+| Xe máy số | `MotorbikeManual (1)` | 4.000 đ | 2.000 đ |
+| Xe tay ga | `MotorbikeScooter (2)` | 5.000 đ | 3.000 đ |
+| Ô tô con | `Car (3)` | 25.000 đ | 15.000 đ |
+
+> Biểu phí có thể chỉnh qua giao diện Admin, lưu vào SQLite, không cần sửa code.
+
+### 🏗️ Bãi Đỗ Xe
+- **20 chỗ xe máy/xe đạp**: M-01 → M-20
+- **10 chỗ ô tô**: C-01 → C-10
+- Tự động tìm chỗ trống khi check-in, cảnh báo khi hết chỗ
+
+### 📷 Cổng Tự Động (Kiosk Mode)
+- `KioskGateDialog`: màn hình toàn cảnh cho nhân viên/khách tự thao tác
+- `CameraService` + `ANPRService`: khung nhận diện biển số (mock, sẵn sàng tích hợp OpenCV)
+- `HardwareController`: giao tiếp barrier qua `QSerialPort`
+- `AutoGateManager`: điều phối toàn bộ luồng vào/ra tự động
+
+### 💳 Self-Checkout (Tự Thanh Toán)
+- Nhập biển số → tra cứu phiên đỗ xe → tính phí tự động
+- Hiển thị QR code mô phỏng thanh toán
+- `BankWebhookSimulator`: giả lập callback xác nhận thanh toán
+
+### 📅 Vé Tháng
+- Đăng ký vé tháng theo biển số, lưu `MonthlyPasses`
+- Trong thời hạn hiệu lực: vào/ra miễn phí (0 đ)
+- Hết hạn → tự động tính theo giờ
+
+### 📊 Dashboard & Lịch Sử
+- Thống kê thời gian thực: số xe đang đỗ, tỷ lệ lấp đầy, doanh thu trong ngày
+- Bảng theo dõi xe đang trong bãi (double-click để thanh toán nhanh)
+- Widget tra cứu lịch sử xe ra vào theo biển số
+
+### 🔧 Nhật Ký Bảo Trì
+- `MaintenanceLogDialog`: ghi và xem lịch sử bảo dưỡng thiết bị
+
+---
+
+## 🏛️ Kiến Trúc & Design Patterns
 
 ```
-D:\ParkingManagementSystem/
-├── CMakeLists.txt              # Cấu hình biên dịch dự án
-├── README.md                   # Hướng dẫn chi tiết
+┌─────────────┐     Signal/Slot      ┌──────────────────┐
+│   UI Layer  │ ◄──────────────────► │  Service Layer   │
+│  (Qt Widgets)│                      │  (Business Logic)│
+└─────────────┘                      └────────┬─────────┘
+                                              │
+                                    ┌─────────▼─────────┐
+                                    │  Repository Layer │
+                                    │  (SQLite / Qt Sql)│
+                                    └───────────────────┘
+```
+
+| Pattern | Nơi áp dụng |
+|---|---|
+| **Strategy** | `IPricingStrategy` → `HourlyPricingStrategy`, `MonthlyPassStrategy` |
+| **Repository** | `ParkingRepository` tách SQL khỏi business logic |
+| **Singleton** | `DatabaseManager::instance()`, `SessionManager::instance()` |
+| **MVC** | UI (`*Dialog`, `*Widget`) không chứa SQL hay logic tính tiền |
+
+---
+
+## 🗂️ Cấu Trúc Thư Mục
+
+```
+ParkingManagementSystem/
+├── CMakeLists.txt
+├── LICENSE
+├── README.md
 ├── resources/
-│   ├── app.qrc                 # Quản lý tài nguyên Qt
+│   ├── app.qrc
+│   ├── icons/
+│   │   ├── eye_open.svg       # Icon hiện mật khẩu
+│   │   └── eye_off.svg        # Icon ẩn mật khẩu
 │   └── styles/
-│       └── dark_theme.qss      # Giao diện hiện đại phong cách Dark Theme
+│       └── dark_theme.qss     # Dark Mode stylesheet
+├── docs/
+│   └── screenshots/           # ← Bạn thêm ảnh vào đây
 └── src/
-    ├── main.cpp                # Điểm khởi chạy ứng dụng
-    ├── models/                 # Tầng thực thể dữ liệu (OOP Models)
-    │   ├── VehicleType.h       # Enum loại xe & vị trí đỗ
-    │   ├── Vehicle.h           # Lớp trừu tượng và 4 lớp xe con
-    │   ├── Vehicle.cpp
-    │   ├── ParkingSlot.h       # Vị trí đỗ xe
-    │   ├── Ticket.h            # Vé lượt xe vào/ra
-    │   ├── MonthlySubscription.h # Gói vé tháng
-    │   └── PricingConfig.h     # Cấu hình bảng giá
-    ├── strategies/             # Strategy Pattern (Tính phí)
-    │   ├── IPricingStrategy.h  # Giao diện chiến lược tính giá
-    │   ├── HourlyPricingStrategy.h
-    │   ├── HourlyPricingStrategy.cpp
-    │   ├── MonthlyPassStrategy.h
-    │   └── MonthlyPassStrategy.cpp
-    ├── db/                     # Tầng CSDL SQLite (Repository & Singleton)
-    │   ├── DatabaseManager.h   # Singleton quản lý kết nối SQLite
-    │   ├── DatabaseManager.cpp
-    │   ├── ParkingRepository.h # Thao tác CRUD dữ liệu
-    │   └── ParkingRepository.cpp
-    ├── services/               # Tầng nghiệp vụ (Business Logic)
-    │   ├── PricingService.h    # Điều phối tính tiền đa hình
-    │   ├── PricingService.cpp
-    │   ├── ParkingManager.h    # Facade trung tâm điều phối toàn bãi xe
-    │   └── ParkingManager.cpp
-    └── ui/                     # Tầng giao diện người dùng (Qt Widgets)
-        ├── MainWindow.h        # Cửa sổ Dashboard chính
-        ├── MainWindow.cpp
-        ├── CheckInDialog.h     # Hộp thoại quẹt xe vào
-        ├── CheckInDialog.cpp
-        ├── CheckOutDialog.h    # Hộp thoại tính tiền xe ra
-        ├── CheckOutDialog.cpp
-        ├── SubscriptionDialog.h# Quản lý đăng ký vé tháng
-        ├── SubscriptionDialog.cpp
-        ├── PricingAdminDialog.h# Quản trị viên cập nhật giá
-        ├── PricingAdminDialog.cpp
-        ├── HistoryWidget.h     # Tra cứu lịch sử xe
-        └── HistoryWidget.cpp
+    ├── main.cpp
+    ├── models/                 # Dữ liệu thuần (không phụ thuộc Qt)
+    │   ├── VehicleType.h       # Enum VehicleType, SlotType, VehicleUtils
+    │   ├── Vehicle.h / .cpp    # Abstract base + concrete vehicles
+    │   ├── ParkingSlot.h
+    │   ├── Ticket.h
+    │   ├── PricingConfig.h
+    │   ├── PricingModel.h / .cpp
+    │   ├── ParkingSession.h
+    │   ├── MonthlySubscription.h
+    │   ├── MonthlyPass.h
+    │   └── User.h
+    ├── strategies/             # Strategy Pattern: tính phí
+    │   ├── IPricingStrategy.h
+    │   ├── HourlyPricingStrategy.h / .cpp
+    │   └── MonthlyPassStrategy.h / .cpp
+    ├── db/                     # Tầng CSDL
+    │   ├── DatabaseManager.h / .cpp   # Singleton, tạo bảng, seed data
+    │   └── ParkingRepository.h / .cpp # CRUD với Prepared Statements
+    ├── services/               # Business Logic
+    │   ├── PricingService.h / .cpp
+    │   ├── ParkingManager.h / .cpp
+    │   ├── SessionManager.h / .cpp    # Xác thực, phân quyền
+    │   ├── CameraService.h / .cpp     # Khung camera (OpenCV-ready)
+    │   ├── ANPRService.h / .cpp       # Nhận diện biển số (mock)
+    │   ├── HardwareController.h / .cpp # Barrier qua QSerialPort
+    │   ├── AutoGateManager.h / .cpp   # Điều phối cổng tự động
+    │   └── BankWebhookSimulator.h / .cpp
+    └── ui/                     # Giao diện người dùng
+        ├── MainWindow.h / .cpp
+        ├── LoginDialog.h / .cpp
+        ├── CheckInDialog.h / .cpp
+        ├── CheckOutDialog.h / .cpp
+        ├── KioskGateDialog.h / .cpp   # Kiosk Mode
+        ├── SelfCheckoutDialog.h / .cpp
+        ├── MonthlyPassDialog.h / .cpp
+        ├── PricingAdminDialog.h / .cpp
+        ├── SubscriptionDialog.h / .cpp
+        ├── MaintenanceLogDialog.h / .cpp
+        └── HistoryWidget.h / .cpp
 ```
 
 ---
 
-## 4. Hướng Dẫn Biên Dịch & Chạy Ứng Dụng
+## 🖥️ Yêu Cầu Hệ Thống
 
-### Cách 1: Dùng Qt Creator (Khuyên Dùng cho Sinh Viên)
-1. Mở phần mềm **Qt Creator**.
-2. Chọn **Open File or Project...** (`Ctrl + O`).
-3. Điều hướng đến thư mục `D:\ParkingManagementSystem` và chọn tệp `CMakeLists.txt`.
-4. Chọn Kit Qt6 tương ứng (ví dụ: `Desktop Qt 6.x.x MinGW 64-bit` hoặc `MSVC`).
-5. Bấm nút **Run** (biểu tượng tam giác xanh lá hoặc `Ctrl + R`) để tự động cấu hình, biên dịch và chạy ứng dụng.
+| Thành phần | Phiên bản |
+|---|---|
+| OS | Windows 10/11 64-bit |
+| Qt | 6.11.x (MinGW 64-bit) |
+| Compiler | MinGW 13.1.0 (đi kèm Qt) hoặc MSVC 2022 |
+| CMake | ≥ 3.16 |
+| SQLite | Đi kèm Qt (QtSql/QSQLITE driver) |
 
-### Cách 2: Dùng VS Code
-1. Mở thư mục `D:\ParkingManagementSystem` trong VS Code.
-2. Cài đặt tiện ích mở rộng **CMake Tools** và **C/C++**.
-3. Chọn Kit Qt6 trên thanh trạng thái dưới cùng.
-4. Bấm `F7` để Build, bấm `Shift + F5` để Run.
+---
 
-### Cách 3: Biên dịch từ Dòng lệnh (Terminal / PowerShell)
-Yêu cầu đã cài đặt CMake và Qt6 (đã set biến môi trường `CMAKE_PREFIX_PATH` trỏ tới thư mục Qt6):
+## ⚙️ Cách Build
+
+### Cách 1 — Qt Creator (khuyên dùng)
+1. Mở Qt Creator → **Open File or Project** → chọn `CMakeLists.txt`
+2. Chọn Kit: `Desktop Qt 6.11.x MinGW 64-bit`
+3. Nhấn **Run** (`Ctrl+R`)
+
+### Cách 2 — Dòng lệnh (PowerShell)
 ```powershell
-# Di chuyển vào thư mục dự án
-cd D:\ParkingManagementSystem
+# Cấu hình
+cmake -B build -S . -G "MinGW Makefiles" `
+      -DCMAKE_BUILD_TYPE=Debug
 
-# Tạo thư mục build và cấu hình
-cmake -B build -S . -DCMAKE_PREFIX_PATH="C:\Qt\6.x.x\mingw_64"
+# Build
+cmake --build build -j4
 
-# Biên dịch dự án
-cmake --build build --config Release
-
-# Chạy ứng dụng
-.\build\ParkingManagementSystem.exe
+# Chạy (file .exe được copy vào App/ tự động)
+.\App\ParkingManagementSystem.exe
 ```
+
+> **Lưu ý**: CMakeLists.txt đã hard-code đường dẫn compiler tại  
+> `C:/Qt/Tools/mingw1310_64/bin/g++.exe`. Nếu cài Qt vào thư mục khác,  
+> sửa 2 dòng `set(CMAKE_C_COMPILER ...)` và `set(CMAKE_CXX_COMPILER ...)`.
 
 ---
 
-## 5. Dữ Liệu Khởi Tạo Mặc Định (Database Seeding)
-Khi khởi chạy lần đầu tiên, hệ thống sẽ tự động tạo file `parking_system.db` và nạp sẵn dữ liệu ban đầu:
-- **Bảng giá mặc định**:
-  - Xe máy xăng: 5.000 VNĐ/giờ | 100.000 VNĐ/tháng
-  - Xe máy điện: 4.000 VNĐ/giờ | 80.000 VNĐ/tháng (Chính sách ưu đãi năng lượng sạch)
-  - Ô tô xăng: 25.000 VNĐ/giờ | 1.200.000 VNĐ/tháng
-  - Ô tô điện: 20.000 VNĐ/giờ | 1.000.000 VNĐ/tháng
-- **Vị trí ô đỗ**:
-  - 20 chỗ xe máy (`M-01` $\to$ `M-20`)
-  - 10 chỗ ô tô (`C-01` $\to$ `C-10`)
+## 🚀 Tài Khoản Demo
+
+| Username | Mật khẩu | Vai trò | Quyền |
+|---|---|---|---|
+| `admin` | `admin123` | Admin | Toàn bộ chức năng |
+| `tech` | `tech123` | Maintenance | Xem nhật ký bảo trì |
+
+> Tài khoản được seed tự động khi chạy lần đầu. Mật khẩu lưu dạng SHA-256 hash.
+
+---
+
+## 🗄️ Cơ Sở Dữ Liệu
+
+File `parking_system.db` (SQLite) được tạo tự động cạnh file `.exe`.
+
+| Bảng | Mô tả |
+|---|---|
+| `Users` | Tài khoản, hash mật khẩu, vai trò |
+| `pricing_config` | Biểu phí 4 loại xe (có thể chỉnh qua Admin) |
+| `ParkingSessions` | Phiên gửi xe (check-in/out, biển số, phí) |
+| `MonthlyPasses` | Vé tháng (tên khách, biển số, hạn dùng) |
+| `parking_slots` | 30 chỗ đỗ (M-01…M-20, C-01…C-10) |
+| `tickets` | Vé lượt (tương thích ngược sơ đồ bãi) |
+| `monthly_subscriptions` | Đăng ký vé tháng legacy |
+
+---
+
+## 🔭 Hướng Phát Triển Tiếp Theo
+
+- [ ] Tích hợp OpenCV thật cho ANPR (nhận diện biển số từ camera RTSP)
+- [ ] Kết nối QSerialPort thật để điều khiển barrier vật lý
+- [ ] Tích hợp cổng thanh toán thật (VNPay, MoMo webhook)
+- [ ] Báo cáo doanh thu theo ngày/tuần/tháng (export Excel/PDF)
+- [ ] Thông báo SMS/email khi vé tháng sắp hết hạn
+- [ ] Hỗ trợ đa bãi xe (multi-location)
+- [ ] Unit tests cho tầng service và repository
+
+---
+
+## 📄 Giấy Phép
+
+Dự án được phát hành theo giấy phép [MIT](LICENSE).
