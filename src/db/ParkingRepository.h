@@ -6,6 +6,11 @@
 #include "../models/Ticket.h"
 #include "../models/MonthlySubscription.h"
 #include "../models/PricingConfig.h"
+#include "../models/ParkingSession.h"
+#include "../models/MonthlyPass.h"
+#include "../models/User.h"
+#include "../models/PricingModel.h"
+
 #include <vector>
 #include <optional>
 #include <QDate>
@@ -15,12 +20,40 @@ class ParkingRepository {
 public:
     ParkingRepository() = default;
 
+    // --- Slot Management ---
     std::optional<ParkingSlot> findAvailableSlot(SlotType type);
     std::vector<ParkingSlot> getAllSlots();
     int countTotalSlots(SlotType type);
     int countOccupiedSlots(SlotType type);
     bool updateSlotOccupancy(int slotId, bool occupied, const QString& licensePlate = "");
 
+    // --- ParkingSessions (Prompt 1, 2, 3) ---
+    std::optional<ParkingSession> createSession(const QString& licensePlate, VehicleType type,
+                                               const QDateTime& checkInTime, double fee = 0.0,
+                                               const QString& status = QStringLiteral("Đang đỗ"));
+    std::optional<ParkingSession> findActiveSessionByPlate(const QString& licensePlate);
+    std::optional<ParkingSession> getSessionById(int id);
+    std::vector<ParkingSession> getAllActiveSessions();
+    std::vector<ParkingSession> getAllSessions();
+    bool updateSessionPayment(int sessionId, const QDateTime& checkOutTime, double fee,
+                              const QString& status = QStringLiteral("Đã thanh toán"));
+
+    // --- MonthlyPasses (Prompt 3) ---
+    bool addMonthlyPass(const MonthlyPass& pass);
+    bool updateMonthlyPass(const MonthlyPass& pass);
+    bool deleteMonthlyPass(int id);
+    std::vector<MonthlyPass> getAllMonthlyPasses();
+    std::optional<MonthlyPass> findValidMonthlyPass(const QString& licensePlate, const QDate& onDate = QDate::currentDate());
+
+    // --- Users & RBAC (Prompt 4) ---
+    std::optional<User> findUserByUsername(const QString& username);
+    std::optional<User> verifyUserCredentials(const QString& username, const QString& passwordHash);
+
+    // --- PricingModel (Prompt 5) ---
+    PricingModel getPricingModel();
+    bool savePricingModel(const PricingModel& model);
+
+    // --- Legacy Ticket & Pricing compatibility ---
     std::optional<Ticket> createTicket(const QString& licensePlate, VehicleType vType, int slotId, const QDateTime& checkInTime);
     std::optional<Ticket> getActiveTicketByPlate(const QString& licensePlate);
     std::vector<Ticket> getAllActiveTickets();

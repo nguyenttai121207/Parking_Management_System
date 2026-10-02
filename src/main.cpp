@@ -4,12 +4,13 @@
 #include <QDebug>
 #include "db/DatabaseManager.h"
 #include "ui/MainWindow.h"
+#include "ui/LoginDialog.h"
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
     QApplication::setApplicationName("ParkingManagementSystem");
-    QApplication::setApplicationVersion("1.0.0");
+    QApplication::setApplicationVersion("2.0.0");
     QApplication::setOrganizationName("CSStudent");
 
     QFile styleFile(":/styles/dark_theme.qss");
@@ -25,6 +26,13 @@ int main(int argc, char *argv[]) {
         QMessageBox::critical(nullptr, QStringLiteral("Lỗi kết nối CSDL"),
             QStringLiteral("Không thể mở hoặc tạo tệp cơ sở dữ liệu SQLite (parking_system.db).\nỨng dụng sẽ thoát."));
         return 1;
+    }
+
+    // Yêu cầu đăng nhập trước khi vào màn hình chính
+    LoginDialog loginDialog;
+    if (loginDialog.exec() != QDialog::Accepted) {
+        DatabaseManager::instance().closeDatabase();
+        return 0;
     }
 
     MainWindow mainWindow;

@@ -378,3 +378,290 @@ double ParkingRepository::getMonthlyRevenue(int year, int month) {
 
     return ticketRev + subRev;
 }
+
+// =============================================================================
+// PARKING SESSIONS (PROMPT 1, 2, 3)
+// =============================================================================
+
+std::optional<ParkingSession> ParkingRepository::createSession(const QString& licensePlate, VehicleType type,
+                                                           const QDateTime& checkInTime, double fee,
+                                                           const QString& status) {
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    query.prepare(R"(
+        INSERT INTO ParkingSessions (license_plate, vehicle_type, check_in_time, total_fee, status)
+        VALUES (?, ?, ?, ?, ?);
+    )");
+    query.bindValue(0, licensePlate.trimmed().toUpper());
+    query.bindValue(1, static_cast<int>(type));
+    query.bindValue(2, checkInTime.toString(Qt::ISODate));
+    query.bindValue(3, fee);
+    query.bindValue(4, status);
+
+    if (query.exec()) {
+        int id = query.lastInsertId().toInt();
+        return ParkingSession(id, licensePlate.trimmed().toUpper(), type, checkInTime, QDateTime(), fee, status);
+    }
+    qWarning() << "Lỗi createSession:" << query.lastError().text();
+    return std::nullopt;
+}
+
+std::optional<ParkingSession> ParkingRepository::findActiveSessionByPlate(const QString& licensePlate) {
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    query.prepare(R"(
+        SELECT id, license_plate, vehicle_type, check_in_time, check_out_time, total_fee, status
+        FROM ParkingSessions
+        WHERE license_plate = ? AND status = 'Đang đỗ'
+        ORDER BY id DESC
+        LIMIT 1;
+    )");
+    query.bindValue(0, licensePlate.trimmed().toUpper());
+    if (query.exec() && query.next()) {
+        return ParkingSession(
+            query.value(0).toInt(),
+            query.value(1).toString(),
+            static_cast<VehicleType>(query.value(2).toInt()),
+            QDateTime::fromString(query.value(3).toString(), Qt::ISODate),
+            query.value(4).isNull() ? QDateTime() : QDateTime::fromString(query.value(4).toString(), Qt::ISODate),
+            query.value(5).toDouble(),
+            query.value(6).toString()
+        );
+    }
+    return std::nullopt;
+}
+
+std::optional<ParkingSession> ParkingRepository::getSessionById(int id) {
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    query.prepare(R"(
+        SELECT id, license_plate, vehicle_type, check_in_time, check_out_time, total_fee, status
+        FROM ParkingSessions
+        WHERE id = ?;
+    )");
+    query.bindValue(0, id);
+    if (query.exec() && query.next()) {
+        return ParkingSession(
+            query.value(0).toInt(),
+            query.value(1).toString(),
+            static_cast<VehicleType>(query.value(2).toInt()),
+            QDateTime::fromString(query.value(3).toString(), Qt::ISODate),
+            query.value(4).isNull() ? QDateTime() : QDateTime::fromString(query.value(4).toString(), Qt::ISODate),
+            query.value(5).toDouble(),
+            query.value(6).toString()
+        );
+    }
+    return std::nullopt;
+}
+
+std::vector<ParkingSession> ParkingRepository::getAllActiveSessions() {
+    std::vector<ParkingSession> list;
+    QSqlQuery query("SELECT id, license_plate, vehicle_type, check_in_time, check_out_time, total_fee, status FROM ParkingSessions WHERE status = 'Đang đỗ' ORDER BY id DESC;",
+                    DatabaseManager::instance().getDatabase());
+    while (query.next()) {
+        list.emplace_back(
+            query.value(0).toInt(),
+            query.value(1).toString(),
+            static_cast<VehicleType>(query.value(2).toInt()),
+            QDateTime::fromString(query.value(3).toString(), Qt::ISODate),
+            query.value(4).isNull() ? QDateTime() : QDateTime::fromString(query.value(4).toString(), Qt::ISODate),
+            query.value(5).toDouble(),
+            query.value(6).toString()
+        );
+    }
+    return list;
+}
+
+std::vector<ParkingSession> ParkingRepository::getAllSessions() {
+    std::vector<ParkingSession> list;
+    QSqlQuery query("SELECT id, license_plate, vehicle_type, check_in_time, check_out_time, total_fee, status FROM ParkingSessions ORDER BY id DESC;",
+                    DatabaseManager::instance().getDatabase());
+    while (query.next()) {
+        list.emplace_back(
+            query.value(0).toInt(),
+            query.value(1).toString(),
+            static_cast<VehicleType>(query.value(2).toInt()),
+            QDateTime::fromString(query.value(3).toString(), Qt::ISODate),
+            query.value(4).isNull() ? QDateTime() : QDateTime::fromString(query.value(4).toString(), Qt::ISODate),
+            query.value(5).toDouble(),
+            query.value(6).toString()
+        );
+    }
+    return list;
+}
+
+bool ParkingRepository::updateSessionPayment(int sessionId, const QDateTime& checkOutTime, double fee, const QString& status) {
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    query.prepare(R"(
+        UPDATE ParkingSessions
+        SET check_out_time = ?, total_fee = ?, status = ?
+        WHERE id = ?;
+    )");
+    query.bindValue(0, checkOutTime.toString(Qt::ISODate));
+    query.bindValue(1, fee);
+    query.bindValue(2, status);
+    query.bindValue(3, sessionId);
+    return query.exec();
+}
+
+// =============================================================================
+// MONTHLY PASSES (PROMPT 3)
+// =============================================================================
+
+bool ParkingRepository::addMonthlyPass(const MonthlyPass& pass) {
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    query.prepare(R"(
+        INSERT INTO MonthlyPasses (customer_name, license_plate, vehicle_type, start_date, expiration_date)
+        VALUES (?, ?, ?, ?, ?);
+    )");
+    query.bindValue(0, pass.getCustomerName());
+    query.bindValue(1, pass.getLicensePlate());
+    query.bindValue(2, static_cast<int>(pass.getVehicleType()));
+    query.bindValue(3, pass.getStartDate().toString(Qt::ISODate));
+    query.bindValue(4, pass.getExpirationDate().toString(Qt::ISODate));
+    return query.exec();
+}
+
+bool ParkingRepository::updateMonthlyPass(const MonthlyPass& pass) {
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    query.prepare(R"(
+        UPDATE MonthlyPasses
+        SET customer_name = ?, vehicle_type = ?, start_date = ?, expiration_date = ?
+        WHERE id = ?;
+    )");
+    query.bindValue(0, pass.getCustomerName());
+    query.bindValue(1, static_cast<int>(pass.getVehicleType()));
+    query.bindValue(2, pass.getStartDate().toString(Qt::ISODate));
+    query.bindValue(3, pass.getExpirationDate().toString(Qt::ISODate));
+    query.bindValue(4, pass.getId());
+    return query.exec();
+}
+
+bool ParkingRepository::deleteMonthlyPass(int id) {
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    query.prepare("DELETE FROM MonthlyPasses WHERE id = ?;");
+    query.bindValue(0, id);
+    return query.exec();
+}
+
+std::vector<MonthlyPass> ParkingRepository::getAllMonthlyPasses() {
+    std::vector<MonthlyPass> list;
+    QSqlQuery query("SELECT id, customer_name, license_plate, vehicle_type, start_date, expiration_date FROM MonthlyPasses ORDER BY id DESC;",
+                    DatabaseManager::instance().getDatabase());
+    while (query.next()) {
+        list.emplace_back(
+            query.value(0).toInt(),
+            query.value(1).toString(),
+            query.value(2).toString(),
+            static_cast<VehicleType>(query.value(3).toInt()),
+            QDate::fromString(query.value(4).toString(), Qt::ISODate),
+            QDate::fromString(query.value(5).toString(), Qt::ISODate)
+        );
+    }
+    return list;
+}
+
+std::optional<MonthlyPass> ParkingRepository::findValidMonthlyPass(const QString& licensePlate, const QDate& onDate) {
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    query.prepare(R"(
+        SELECT id, customer_name, license_plate, vehicle_type, start_date, expiration_date
+        FROM MonthlyPasses
+        WHERE license_plate = ? AND start_date <= ? AND expiration_date >= ?
+        LIMIT 1;
+    )");
+    query.bindValue(0, licensePlate.trimmed().toUpper());
+    query.bindValue(1, onDate.toString(Qt::ISODate));
+    query.bindValue(2, onDate.toString(Qt::ISODate));
+    if (query.exec() && query.next()) {
+        return MonthlyPass(
+            query.value(0).toInt(),
+            query.value(1).toString(),
+            query.value(2).toString(),
+            static_cast<VehicleType>(query.value(3).toInt()),
+            QDate::fromString(query.value(4).toString(), Qt::ISODate),
+            QDate::fromString(query.value(5).toString(), Qt::ISODate)
+        );
+    }
+    return std::nullopt;
+}
+
+// =============================================================================
+// USERS & RBAC (PROMPT 4)
+// =============================================================================
+
+std::optional<User> ParkingRepository::findUserByUsername(const QString& username) {
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    query.prepare("SELECT id, username, password_hash, role FROM Users WHERE username = ?;");
+    query.bindValue(0, username.trimmed());
+    if (query.exec() && query.next()) {
+        return User(
+            query.value(0).toInt(),
+            query.value(1).toString(),
+            query.value(2).toString(),
+            query.value(3).toString()
+        );
+    }
+    return std::nullopt;
+}
+
+std::optional<User> ParkingRepository::verifyUserCredentials(const QString& username, const QString& passwordHash) {
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    query.prepare("SELECT id, username, password_hash, role FROM Users WHERE username = ? AND password_hash = ?;");
+    query.bindValue(0, username.trimmed());
+    query.bindValue(1, passwordHash);
+    if (query.exec() && query.next()) {
+        return User(
+            query.value(0).toInt(),
+            query.value(1).toString(),
+            query.value(2).toString(),
+            query.value(3).toString()
+        );
+    }
+    return std::nullopt;
+}
+
+// =============================================================================
+// PRICING MODEL (PROMPT 5)
+// =============================================================================
+
+PricingModel ParkingRepository::getPricingModel() {
+    PricingModel model;
+    QSqlQuery query("SELECT vehicle_type, first_block_fee, next_block_fee FROM pricing_config;",
+                    DatabaseManager::instance().getDatabase());
+    while (query.next()) {
+        VehicleType t = static_cast<VehicleType>(query.value(0).toInt());
+        double first = query.value(1).toDouble();
+        double next = query.value(2).toDouble();
+        model.setRate(t, first, next);
+    }
+    return model;
+}
+
+bool ParkingRepository::savePricingModel(const PricingModel& model) {
+    QSqlDatabase db = DatabaseManager::instance().getDatabase();
+    if (!db.transaction()) {
+        return false;
+    }
+    QString now = QDateTime::currentDateTime().toString(Qt::ISODate);
+
+    for (const auto& r : model.getAllRates()) {
+        QSqlQuery query(db);
+        query.prepare(R"(
+            INSERT INTO pricing_config (vehicle_type, type_name, first_block_fee, next_block_fee, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(vehicle_type) DO UPDATE SET
+                type_name = excluded.type_name,
+                first_block_fee = excluded.first_block_fee,
+                next_block_fee = excluded.next_block_fee,
+                updated_at = excluded.updated_at;
+        )");
+        query.bindValue(0, static_cast<int>(r.vehicleType));
+        query.bindValue(1, r.typeName);
+        query.bindValue(2, r.firstBlockFee);
+        query.bindValue(3, r.nextBlockFee);
+        query.bindValue(4, now);
+        if (!query.exec()) {
+            db.rollback();
+            return false;
+        }
+    }
+    return db.commit();
+}
+

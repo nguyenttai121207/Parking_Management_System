@@ -2,7 +2,9 @@
 #define PRICING_ADMIN_DIALOG_H
 
 #include <QDialog>
-#include "../services/ParkingManager.h"
+#include "../models/VehicleType.h"
+#include "../models/PricingModel.h"
+#include "../db/ParkingRepository.h"
 #include <vector>
 
 class QDoubleSpinBox;
@@ -12,11 +14,12 @@ class PricingAdminDialog : public QDialog {
     Q_OBJECT
 
 private:
-    ParkingManager& m_manager;
+    ParkingRepository m_repo;
     struct RowInputs {
         VehicleType type;
-        QDoubleSpinBox* hourlySpin;
-        QDoubleSpinBox* monthlySpin;
+        QString typeName;
+        QDoubleSpinBox* firstBlockSpin;
+        QDoubleSpinBox* nextBlockSpin;
     };
     std::vector<RowInputs> m_rows;
 
@@ -24,7 +27,7 @@ private:
     QPushButton* m_cancelBtn;
 
 public:
-    explicit PricingAdminDialog(ParkingManager& manager, QWidget* parent = nullptr);
+    explicit PricingAdminDialog(QWidget* parent = nullptr);
 
 private slots:
     void loadConfigs();

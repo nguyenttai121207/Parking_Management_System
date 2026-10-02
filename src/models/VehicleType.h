@@ -4,10 +4,16 @@
 #include <QString>
 
 enum class VehicleType {
-    MotorbikeGas = 0,
-    MotorbikeElectric = 1,
-    CarGas = 2,
-    CarElectric = 3
+    Bicycle = 0,          // Xe đạp
+    MotorbikeManual = 1,  // Xe máy số
+    MotorbikeScooter = 2, // Xe tay ga
+    Car = 3,              // Ô tô con
+
+    // Tương thích ngược
+    MotorbikeGas = 1,
+    MotorbikeElectric = 2,
+    CarGas = 3,
+    CarElectric = 4
 };
 
 enum class SlotType {
@@ -17,17 +23,19 @@ enum class SlotType {
 
 namespace VehicleUtils {
     inline QString getVehicleTypeName(VehicleType type) {
-        switch (type) {
-            case VehicleType::MotorbikeGas:      return QStringLiteral("Xe máy xăng");
-            case VehicleType::MotorbikeElectric: return QStringLiteral("Xe máy điện");
-            case VehicleType::CarGas:            return QStringLiteral("Ô tô xăng");
-            case VehicleType::CarElectric:       return QStringLiteral("Ô tô điện");
+        switch (static_cast<int>(type)) {
+            case 0: return QStringLiteral("Xe đạp");
+            case 1: return QStringLiteral("Xe máy số");
+            case 2: return QStringLiteral("Xe tay ga");
+            case 3:
+            case 4: return QStringLiteral("Ô tô con");
+            default: break;
         }
         return QStringLiteral("Không xác định");
     }
 
     inline SlotType getSlotTypeForVehicle(VehicleType type) {
-        if (type == VehicleType::MotorbikeGas || type == VehicleType::MotorbikeElectric) {
+        if (static_cast<int>(type) <= 2) {
             return SlotType::MotorbikeSlot;
         }
         return SlotType::CarSlot;
@@ -35,7 +43,7 @@ namespace VehicleUtils {
 
     inline QString getSlotTypeName(SlotType type) {
         switch (type) {
-            case SlotType::MotorbikeSlot: return QStringLiteral("Chỗ xe máy");
+            case SlotType::MotorbikeSlot: return QStringLiteral("Chỗ xe máy/xe đạp");
             case SlotType::CarSlot:       return QStringLiteral("Chỗ ô tô");
         }
         return QStringLiteral("Không xác định");

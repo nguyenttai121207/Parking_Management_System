@@ -8,77 +8,92 @@
 #include <QMessageBox>
 #include <QFrame>
 
-PricingAdminDialog::PricingAdminDialog(ParkingManager& manager, QWidget* parent)
-    : QDialog(parent), m_manager(manager) {
+PricingAdminDialog::PricingAdminDialog(QWidget* parent)
+    : QDialog(parent) {
     setupUi();
+    loadConfigs();
 }
 
 void PricingAdminDialog::setupUi() {
     setWindowTitle(QStringLiteral("Cấu Hình Biểu Phí Bãi Giữ Xe"));
-    setFixedSize(580, 380);
+    setFixedSize(620, 400);
     setAttribute(Qt::WA_DeleteOnClose, false);
 
     auto mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(16);
     mainLayout->setContentsMargins(24, 24, 24, 24);
 
-    auto titleLabel = new QLabel(QStringLiteral("QUẢN LÝ BIỂU PHÍ THEO LOẠI XE"), this);
+    auto titleLabel = new QLabel(QStringLiteral("CẤU HÌNH BIỂU PHÍ THEO LOẠI XE"), this);
     titleLabel->setObjectName("titleLabel");
-    titleLabel->setStyleSheet("font-size: 18px; font-weight: 700; color: #89b4fa; letter-spacing: 0.05em;");
+    titleLabel->setStyleSheet("font-size: 18px; font-weight: 700; color: #89b4fa; letter-spacing: 0.04em;");
     mainLayout->addWidget(titleLabel);
 
-    auto descLabel = new QLabel(QStringLiteral("Đơn giá được áp dụng ngay lập tức cho các lượt tính phí tiếp theo trong hệ thống."), this);
+    auto descLabel = new QLabel(QStringLiteral("Biểu phí được áp dụng tự động cho module Self-Checkout để tính tiền gửi xe."), this);
     descLabel->setStyleSheet("color: #a6adc8; font-size: 12px; margin-bottom: 4px;");
     mainLayout->addWidget(descLabel);
 
     auto formFrame = new QFrame(this);
     formFrame->setStyleSheet("background-color: #252538; border: 1px solid #313244; border-radius: 8px; padding: 12px;");
     auto grid = new QGridLayout(formFrame);
-    grid->setSpacing(12);
-    grid->setContentsMargins(12, 12, 12, 12);
+    grid->setSpacing(14);
+    grid->setContentsMargins(14, 14, 14, 14);
 
-    auto headerType = new QLabel(QStringLiteral("Loại Phương Tiện"), formFrame);
-    headerType->setStyleSheet("font-weight: bold; color: #bac2de;");
-    auto headerHourly = new QLabel(QStringLiteral("Giá Theo Giờ (VNĐ)"), formFrame);
-    headerHourly->setStyleSheet("font-weight: bold; color: #bac2de;");
-    auto headerMonthly = new QLabel(QStringLiteral("Giá Gói Tháng (VNĐ)"), formFrame);
-    headerMonthly->setStyleSheet("font-weight: bold; color: #bac2de;");
+    // Tiêu đề cột (Header) theo yêu cầu Prompt 5
+    auto headerType = new QLabel(QStringLiteral("Loại xe"), formFrame);
+    headerType->setStyleSheet("font-weight: bold; color: #89b4fa; font-size: 13px;");
+
+    auto headerFirst = new QLabel(QStringLiteral("Phí block đầu (VNĐ)"), formFrame);
+    headerFirst->setStyleSheet("font-weight: bold; color: #89b4fa; font-size: 13px;");
+
+    auto headerNext = new QLabel(QStringLiteral("Phí block tiếp theo (VNĐ)"), formFrame);
+    headerNext->setStyleSheet("font-weight: bold; color: #89b4fa; font-size: 13px;");
 
     grid->addWidget(headerType, 0, 0);
-    grid->addWidget(headerHourly, 0, 1);
-    grid->addWidget(headerMonthly, 0, 2);
+    grid->addWidget(headerFirst, 0, 1);
+    grid->addWidget(headerNext, 0, 2);
 
-    VehicleType types[] = {
-        VehicleType::MotorbikeGas,
-        VehicleType::MotorbikeElectric,
-        VehicleType::CarGas,
-        VehicleType::CarElectric
+    // Sửa lỗi mất label ở cột 1, map cứng danh sách text: 'Xe đạp', 'Xe máy số', 'Xe tay ga', 'Ô tô con'
+    struct HardcodedType {
+        VehicleType type;
+        const char* name;
+    };
+
+    const HardcodedType fixedTypes[] = {
+        {VehicleType::Bicycle, "Xe đạp"},
+        {VehicleType::MotorbikeManual, "Xe máy số"},
+        {VehicleType::MotorbikeScooter, "Xe tay ga"},
+        {VehicleType::Car, "Ô tô con"}
     };
 
     int row = 1;
-    for (auto t : types) {
-        auto lbl = new QLabel(VehicleUtils::getVehicleTypeName(t), formFrame);
-        lbl->setStyleSheet("color: #cdd6f4; font-weight: 500;");
+    m_rows.clear();
+
+    for (const auto& item : fixedTypes) {
+        // Cột 1: Tên hiển thị cố định rõ ràng, không bị render rỗng
+        auto lbl = new QLabel(QString::fromUtf8(item.name), formFrame);
+        lbl->setStyleSheet("color: #cdd6f4; font-weight: 600; font-size: 13px;");
         grid->addWidget(lbl, row, 0);
 
-        auto hourly = new QDoubleSpinBox(formFrame);
-        hourly->setRange(1000.0, 5000000.0);
-        hourly->setSingleStep(1000.0);
-        hourly->setDecimals(0);
-        hourly->setSuffix(QStringLiteral(" đ"));
+        // Cột 2: Phí block đầu
+        auto firstSpin = new QDoubleSpinBox(formFrame);
+        firstSpin->setRange(0.0, 5000000.0);
+        firstSpin->setSingleStep(1000.0);
+        firstSpin->setDecimals(0);
+        firstSpin->setSuffix(QStringLiteral(" đ"));
+        grid->addWidget(firstSpin, row, 1);
 
-        auto monthly = new QDoubleSpinBox(formFrame);
-        monthly->setRange(10000.0, 50000000.0);
-        monthly->setSingleStep(50000.0);
-        monthly->setDecimals(0);
-        monthly->setSuffix(QStringLiteral(" đ"));
+        // Cột 3: Phí block tiếp theo
+        auto nextSpin = new QDoubleSpinBox(formFrame);
+        nextSpin->setRange(0.0, 5000000.0);
+        nextSpin->setSingleStep(1000.0);
+        nextSpin->setDecimals(0);
+        nextSpin->setSuffix(QStringLiteral(" đ"));
+        grid->addWidget(nextSpin, row, 2);
 
-        grid->addWidget(hourly, row, 1);
-        grid->addWidget(monthly, row, 2);
-
-        m_rows.push_back({t, hourly, monthly});
+        m_rows.push_back({item.type, QString::fromUtf8(item.name), firstSpin, nextSpin});
         row++;
     }
+
     mainLayout->addWidget(formFrame);
 
     auto btnLayout = new QHBoxLayout();
@@ -87,7 +102,7 @@ void PricingAdminDialog::setupUi() {
     m_cancelBtn = new QPushButton(QStringLiteral("Hủy"), this);
     m_cancelBtn->setCursor(Qt::PointingHandCursor);
 
-    m_saveBtn = new QPushButton(QStringLiteral("Lưu Bảng Giá"), this);
+    m_saveBtn = new QPushButton(QStringLiteral("Lưu Biểu Phí"), this);
     m_saveBtn->setObjectName("successBtn");
     m_saveBtn->setCursor(Qt::PointingHandCursor);
 
@@ -98,38 +113,31 @@ void PricingAdminDialog::setupUi() {
 
     connect(m_saveBtn, &QPushButton::clicked, this, &PricingAdminDialog::onSave);
     connect(m_cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
-
-    loadConfigs();
 }
 
 void PricingAdminDialog::loadConfigs() {
-    auto configs = m_manager.getPricingConfigs();
-    for (const auto& c : configs) {
-        for (auto& row : m_rows) {
-            if (row.type == c.getVehicleType()) {
-                row.hourlySpin->setValue(c.getHourlyRate());
-                row.monthlySpin->setValue(c.getMonthlyRate());
-                break;
-            }
-        }
+    PricingModel model = m_repo.getPricingModel();
+
+    // Điền chính xác dữ liệu cấu hình vào từng dòng mà không bị render rỗng
+    for (auto& row : m_rows) {
+        PricingRate rate = model.getRate(row.type);
+        row.firstBlockSpin->setValue(rate.firstBlockFee);
+        row.nextBlockSpin->setValue(rate.nextBlockFee);
     }
 }
 
 void PricingAdminDialog::onSave() {
-    bool allSuccess = true;
+    PricingModel model;
     for (const auto& row : m_rows) {
-        PricingConfig config(row.type, row.hourlySpin->value(), row.monthlySpin->value());
-        if (!m_manager.updatePricingConfig(config)) {
-            allSuccess = false;
-        }
+        model.setRate(row.type, row.firstBlockSpin->value(), row.nextBlockSpin->value());
     }
 
-    if (allSuccess) {
-        QMessageBox::information(this, QStringLiteral("Cập Nhật Thành Công"), 
-                                 QStringLiteral("Biểu phí các loại phương tiện đã được lưu thành công vào cơ sở dữ liệu!"));
+    if (m_repo.savePricingModel(model)) {
+        QMessageBox::information(this, QStringLiteral("Cập Nhật Thành Công"),
+                                 QStringLiteral("Biểu phí đã được lưu thành công vào cơ sở dữ liệu!"));
         accept();
     } else {
-        QMessageBox::critical(this, QStringLiteral("Lỗi Lưu Dữ Liệu"), 
-                             QStringLiteral("Đã xảy ra lỗi khi ghi dữ liệu cấu hình vào CSDL!"));
+        QMessageBox::critical(this, QStringLiteral("Lỗi Lưu Dữ Liệu"),
+                              QStringLiteral("Đã xảy ra lỗi khi ghi dữ liệu cấu hình biểu phí vào CSDL!"));
     }
 }
