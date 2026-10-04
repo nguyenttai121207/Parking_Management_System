@@ -1,5 +1,5 @@
 #include "SessionManager.h"
-#include <QCryptographicHash>
+#include "PasswordHasher.h"
 
 SessionManager::SessionManager() {}
 
@@ -9,13 +9,21 @@ SessionManager& SessionManager::instance() {
 }
 
 bool SessionManager::login(const QString& username, const QString& password) {
-    QString hash = QString::fromLatin1(QCryptographicHash::hash(password.toUtf8(), QCryptographicHash::Sha256).toHex());
-    auto userOpt = m_repo.verifyUserCredentials(username, hash);
-    if (userOpt.has_value()) {
-        m_currentUser = userOpt.value();
-        return true;
+    auto userOpt = m_repo.findUserByUsername(username.trimmed());
+    if (!userOpt.has_value()) return false;
+
+    const User& user = userOpt.value();
+    auto result = PasswordHasher::verify(password, user.getPasswordHash());
+
+    if (result == PasswordHasher::VerifyResult::Wrong) return false;
+
+    // Tương thích ngược: nếu hash cũ (SHA-256), upgrade lên PBKDF2 ngay sau login
+    if (result == PasswordHasher::VerifyResult::OkLegacy) {
+        m_repo.updateUserPasswordHash(user.getId(), PasswordHasher::hash(password));
     }
-    return false;
+
+    m_currentUser = user;
+    return true;
 }
 
 void SessionManager::logout() {

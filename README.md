@@ -3,6 +3,7 @@
 > Phần mềm desktop quản lý bãi giữ xe tự động, xây dựng bằng **C++17**, **Qt 6.11**, **SQLite** và **CMake**.  
 > Kiến trúc MVC, áp dụng các Design Pattern: Strategy, Repository, Singleton, Factory.
 
+[![CI](https://github.com/nguyenttai121207/Parking_Management_System/actions/workflows/build.yml/badge.svg)](https://github.com/nguyenttai121207/Parking_Management_System/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-orange.svg)](https://isocpp.org/)
 [![Qt6](https://img.shields.io/badge/Qt-6.11-green.svg)](https://www.qt.io/)
@@ -175,21 +176,26 @@ ParkingManagementSystem/
 3. Nhấn **Run** (`Ctrl+R`)
 
 ### Cách 2 — Dòng lệnh (PowerShell)
+
+Thay `<đường dẫn Qt>` bằng thư mục chứa `lib/cmake/Qt6` của bản Qt bạn đã cài,  
+ví dụ `C:\Qt\6.11.2\mingw_64` (MinGW) hoặc `C:\Qt\6.11.2\msvc2022_64` (MSVC).
+
 ```powershell
-# Cấu hình
+# MinGW
 cmake -B build -S . -G "MinGW Makefiles" `
+      -DCMAKE_PREFIX_PATH="C:\Qt\6.11.2\mingw_64" `
       -DCMAKE_BUILD_TYPE=Debug
-
-# Build
 cmake --build build -j4
-
-# Chạy (file .exe được copy vào App/ tự động)
-.\App\ParkingManagementSystem.exe
 ```
 
-> **Lưu ý**: CMakeLists.txt đã hard-code đường dẫn compiler tại  
-> `C:/Qt/Tools/mingw1310_64/bin/g++.exe`. Nếu cài Qt vào thư mục khác,  
-> sửa 2 dòng `set(CMAKE_C_COMPILER ...)` và `set(CMAKE_CXX_COMPILER ...)`.
+```powershell
+# MSVC (Visual Studio 2022)
+cmake -B build -S . -G "Visual Studio 17 2022" -A x64 `
+      -DCMAKE_PREFIX_PATH="C:\Qt\6.11.2\msvc2022_64"
+cmake --build build --config Release
+```
+
+Sau khi build, file `.exe` được copy tự động vào thư mục `App/`.
 
 ---
 

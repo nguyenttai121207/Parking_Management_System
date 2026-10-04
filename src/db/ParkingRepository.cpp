@@ -617,6 +617,14 @@ std::optional<User> ParkingRepository::verifyUserCredentials(const QString& user
     return std::nullopt;
 }
 
+bool ParkingRepository::updateUserPasswordHash(int userId, const QString& newHash) {
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    query.prepare("UPDATE Users SET password_hash = ? WHERE id = ?;");
+    query.bindValue(0, newHash);
+    query.bindValue(1, userId);
+    return query.exec();
+}
+
 // =============================================================================
 // PRICING MODEL (PROMPT 5)
 // =============================================================================

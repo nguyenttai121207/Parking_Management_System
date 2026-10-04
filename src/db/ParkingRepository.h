@@ -48,6 +48,7 @@ public:
     // --- Users & RBAC (Prompt 4) ---
     std::optional<User> findUserByUsername(const QString& username);
     std::optional<User> verifyUserCredentials(const QString& username, const QString& passwordHash);
+    bool updateUserPasswordHash(int userId, const QString& newHash);
 
     // --- PricingModel (Prompt 5) ---
     PricingModel getPricingModel();

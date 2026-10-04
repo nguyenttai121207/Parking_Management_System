@@ -10,8 +10,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     )
 endif()
 
-set(CMAKE_C_COMPILER "C:/Qt/Tools/mingw1310_64/bin/gcc.exe" CACHE PATH "" FORCE)
-set(CMAKE_CXX_COMPILER "C:/Qt/Tools/mingw1310_64/bin/g++.exe" CACHE PATH "" FORCE)
 
 project(ParkingManagementSystem VERSION 2.0.0 LANGUAGES CXX)
 
@@ -22,14 +20,26 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Sql)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Sql Network Test)
 
-set(SOURCES
-    src/main.cpp
+# ==============================================================================
+# parking_core: static library (models + strategies) — dùng chung với app và tests
+# ==============================================================================
+add_library(parking_core STATIC
     src/models/Vehicle.cpp
     src/models/PricingModel.cpp
     src/strategies/HourlyPricingStrategy.cpp
     src/strategies/MonthlyPassStrategy.cpp
+)
+target_include_directories(parking_core PUBLIC
+    src/models
+    src/strategies
+    src/services
+)
+target_link_libraries(parking_core PUBLIC Qt6::Core Qt6::Network)
+
+set(SOURCES
+    src/main.cpp
     src/db/DatabaseManager.cpp
     src/db/ParkingRepository.cpp
     src/services/PricingService.cpp
@@ -110,6 +120,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
+    parking_core
     Qt6::Core
     Qt6::Gui
     Qt6::Widgets
@@ -130,3 +141,9 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         "${CMAKE_SOURCE_DIR}/App/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
     COMMENT "Dang tu dong copy file .exe moi sang thu muc App..."
 )
+
+# ==============================================================================
+# TESTS
+# ==============================================================================
+enable_testing()
+add_subdirectory(tests)

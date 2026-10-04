@@ -1,9 +1,9 @@
 #include "DatabaseManager.h"
+#include "../services/PasswordHasher.h"
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QDebug>
 #include <QDateTime>
-#include <QCryptographicHash>
 
 DatabaseManager::DatabaseManager() : m_initialized(false) {}
 
@@ -188,16 +188,14 @@ bool DatabaseManager::seedInitialData() {
         )");
 
         // admin / admin123
-        QString adminHash = QString::fromLatin1(QCryptographicHash::hash("admin123", QCryptographicHash::Sha256).toHex());
         query.bindValue(0, "admin");
-        query.bindValue(1, adminHash);
+        query.bindValue(1, PasswordHasher::hash(QStringLiteral("admin123")));
         query.bindValue(2, "Admin");
         query.exec();
 
         // tech / tech123
-        QString techHash = QString::fromLatin1(QCryptographicHash::hash("tech123", QCryptographicHash::Sha256).toHex());
         query.bindValue(0, "tech");
-        query.bindValue(1, techHash);
+        query.bindValue(1, PasswordHasher::hash(QStringLiteral("tech123")));
         query.bindValue(2, "Maintenance");
         query.exec();
     }

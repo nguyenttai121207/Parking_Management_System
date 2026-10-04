@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.3'       # phiên bản Qt mới nhất mà action hỗ trợ (khác 6.11 đang dùng local)
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_mingw'
+          modules: ''            # không cần module thêm; SerialPort dùng __has_include nên optional
+
+      - name: Configure CMake
+        run: >
+          cmake -B build -S .
+          -G "MinGW Makefiles"
+          -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build -j4
+
+      - name: Run Tests
+        run: ctest --test-dir build --output-on-failure -C Release
